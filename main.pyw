@@ -33,6 +33,12 @@ class CacheData:
         self._save_cache()
 
     def __contains__(self, game_data: 'GameData') -> bool:
+        print("")
+        print("-" * 15)
+        print(f"{game_data.name} in {self.data.keys()}: {game_data.name in self.data.keys()}")
+        print(f"{game_data} == {self.data[game_data.name]}: {self.data[game_data.name] == game_data}")
+        print("-" * 15)
+        print("")
         return game_data.name in self.data.keys() and self.data[game_data.name] == game_data
 
     def _save_cache(self):
@@ -42,6 +48,9 @@ class CacheData:
     def _load_cache(self):
         with open(CACHE_FILE, "r") as cache_file:
             data: dict[str, GameData] = json.load(cache_file)
+            for k, game_data in data.items():
+                data[k] = GameData(game_data)
+                data[k].sub_data = list(map(lambda sub: GameData.DiscountData(sub), data[k].sub_data))
             self.data = data
 
 
@@ -90,6 +99,9 @@ class GameData:
                 "price": self.price
             }
 
+        def __repr__(self):
+            return f"GameData.DiscountData({self.discount_pct}, {self.price})"
+
         def __str__(self):
             return f"Discount: {self.discount_pct}% | Value: ~{self.price / 100}"
 
@@ -125,7 +137,9 @@ class GameData:
         return f"Name: {self.name} | Discounts: {[str(x) for x in self.sub_data]}"
 
     def __eq__(self, other: 'GameData'):
-        return self.name == other.name and self.sub_data == other.sub_data
+        if isinstance(other, GameData):
+            return self.name == other.name and self.sub_data == other.sub_data
+        raise ValueError(f"invalid comparison object: {type(other)}")
 
 
 def validate_data(data: dict[str, int]) -> bool:
