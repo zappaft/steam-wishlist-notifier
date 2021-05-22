@@ -33,12 +33,6 @@ class CacheData:
         self._save_cache()
 
     def __contains__(self, game_data: 'GameData') -> bool:
-        print("")
-        print("-" * 15)
-        print(f"{game_data.name} in {self.data.keys()}: {game_data.name in self.data.keys()}")
-        print(f"{game_data} == {self.data[game_data.name]}: {self.data[game_data.name] == game_data}")
-        print("-" * 15)
-        print("")
         return game_data.name in self.data.keys() and self.data[game_data.name] == game_data
 
     def _save_cache(self):
