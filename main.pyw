@@ -1,3 +1,4 @@
+import getpass
 import os
 import json
 from json import JSONEncoder
@@ -13,6 +14,7 @@ import requests
 notification_queue = queue.Queue()
 SETTINGS_FILE = os.path.join(os.path.dirname(__file__), "settings.json")
 CACHE_FILE = os.path.join(os.path.dirname(__file__), "cached_data.json")
+PYTHON_EXE = os.path.join(os.path.dirname(__file__), "venv", "Scripts", "python.exe")
 
 
 class CacheEncoder(JSONEncoder):
@@ -45,7 +47,7 @@ class CacheData:
             new_data = dict()
             for k, game_data in data.items():
                 parsed_data: GameData = GameData(game_data)
-                if parsed_data.expiration_date < datetime.now().timestamp():
+                if parsed_data.expiration_date > datetime.now().timestamp():
                     new_data[k] = parsed_data
                     new_data[k].subs = list(map(lambda sub: GameData.DiscountData(sub), data[k]["subs"]))
             self.data = new_data
@@ -68,6 +70,7 @@ class Settings:
                 self.page_delay = 1
                 self.notification_duration = 4
                 self.expiration_days = 7
+                self.start_delay = 3
                 with open(SETTINGS_FILE, "w") as settings_file:
                     json.dump(self.__dict__, settings_file, indent=2)
                 sys.exit(1)
@@ -135,6 +138,19 @@ def validate_data(data: dict[str, int]) -> bool:
     return True
 
 
+def add_to_startup():
+    user_name = getpass.getuser()
+    bat_path = rf'C:\Users\{user_name}\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup'
+    bat_name = "wishlist-notifier.bat"
+    bat_file = os.path.join(bat_path, bat_name)
+
+    if os.path.exists(bat_file):
+        return
+
+    with open(bat_file, "w+") as file:
+        file.write(f"{PYTHON_EXE} {__file__}")
+
+
 def show_notification() -> None:
     while True:
         game_data: GameData = notification_queue.get()
@@ -169,7 +185,9 @@ def start() -> None:
 
 
 if __name__ == '__main__':
+    add_to_startup()
     settings = Settings()
     cache = CacheData()
+    time.sleep(settings.start_delay * 60)
     threading.Thread(target=show_notification, daemon=True).start()
     start()
