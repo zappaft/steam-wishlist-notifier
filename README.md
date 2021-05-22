@@ -42,7 +42,6 @@
 <!-- ABOUT THE PROJECT -->
 ## About The Project
 
-[![Product Name Screen Shot][product-screenshot]](https://example.com)
 
 Due to my own experience of constantly checking steam sales every day...
 I decided to try and build something to automate it.
@@ -99,7 +98,7 @@ You can now simply run the main script, and it will keep pushing notifications t
 desktop.
 1. Run
    ```sh
-   python main.pyw
+   python main.py
    ```
 
 <!-- CONTRIBUTING -->
@@ -128,21 +127,3 @@ Distributed under the MIT License. See `LICENSE` for more information.
 Felipe Rocha - feliperch94@gmail.com
 
 Project Link: [https://github.com/zappaft/steam-wishlist-notifier](https://github.com/zappaft/steam-wishlist-notifier)
-
-
-
-
-<!-- MARKDOWN LINKS & IMAGES -->
-<!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
-[contributors-shield]: https://img.shields.io/github/contributors/github_username/repo.svg?style=for-the-badge
-[contributors-url]: https://github.com/github_username/repo/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/github_username/repo.svg?style=for-the-badge
-[forks-url]: https://github.com/github_username/repo/network/members
-[stars-shield]: https://img.shields.io/github/stars/github_username/repo.svg?style=for-the-badge
-[stars-url]: https://github.com/github_username/repo/stargazers
-[issues-shield]: https://img.shields.io/github/issues/github_username/repo.svg?style=for-the-badge
-[issues-url]: https://github.com/github_username/repo/issues
-[license-shield]: https://img.shields.io/github/license/github_username/repo.svg?style=for-the-badge
-[license-url]: https://github.com/github_username/repo/blob/master/LICENSE.txt
-[linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=for-the-badge&logo=linkedin&colorB=555
-[linkedin-url]: https://linkedin.com/in/github_username
