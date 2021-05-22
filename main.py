@@ -1,4 +1,5 @@
 import getpass
+import logging
 import os
 import queue
 import threading
@@ -24,15 +25,18 @@ def add_to_startup():
     bat_file = os.path.join(bat_path, bat_name)
 
     if os.path.exists(bat_file):
+        logging.debug(f"main.add_to_startup: File {bat_file} exists.")
         return
 
-    with open(bat_file, "w+") as file:
+    with open(bat_file, "w") as file:
+        logging.debug(f"main.add_to_startup: File {bat_file} created.")
         file.write(f"{PYTHON_EXE} {__file__}")
 
 
 def show_notification() -> None:
     while True:
         game_data: GameData = notification_queue.get()
+        logging.debug(f"main.show_notification: Got {game_data}")
         cache.add(game_data)
         Notification(
             title=game_data.name,
@@ -64,6 +68,8 @@ def start() -> None:
 
 
 if __name__ == '__main__':
+    log_path = os.path.join(os.path.dirname(__file__), "logs", f"{str(datetime.now().timestamp())}.log")
+    logging.basicConfig(filename=log_path, level=logging.DEBUG)
     add_to_startup()
     settings = Settings(debug=True)
     cache = CacheData()
