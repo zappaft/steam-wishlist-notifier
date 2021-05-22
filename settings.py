@@ -1,3 +1,4 @@
+import logging
 import sys
 import json
 import os
@@ -10,8 +11,9 @@ SECS_IN_HOUR = 3600
 def validate_data(data: dict[str, Union[int, float]]) -> bool:
     # TODO validate profile_id as a valid user
     # TODO improve validation to allow different types
-    for value in data.values():
+    for k, value in data.items():
         if not isinstance(value, (int, float)):
+            logging.error(f"settings.validate_data :: invalid data {value} for key {k}")
             raise ValueError
     return True
 
@@ -29,7 +31,7 @@ class Settings:
                     self.__dict__.update(data)
         except (FileNotFoundError, ValueError) as e:
             if isinstance(e, FileNotFoundError):
-                print(f"Please fill the {SETTINGS_FILE} with your data/preferences.")
+                logging.warning(f"settings.Settings.__init__ :: Please fill the {SETTINGS_FILE} with your data.")
                 self.profile_id = None
                 self.interval = 4
                 self.min_discount = 30
@@ -38,10 +40,12 @@ class Settings:
                 self.expiration_days = 7
                 self.start_delay = 3
                 with open(SETTINGS_FILE, "w", encoding="utf-8") as settings_file:
+                    logging.debug(f"settings.Settings.__init__ :: Writing default settings to {SETTINGS_FILE}")
+                    del self.debug
                     json.dump(self.__dict__, settings_file, indent=2, ensure_ascii=False)
                 sys.exit(1)
             else:
-                print(f"Invalid data found at settings file: {SETTINGS_FILE}")
+                logging.error(f"settings.Settings.__init__ :: Invalid data found at settings file {SETTINGS_FILE}")
                 sys.exit(1)
 
     def wishlist_url(self) -> str:
