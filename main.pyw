@@ -5,8 +5,9 @@ import queue
 import sys
 import threading
 import time
-from typing import Any, Union
+from typing import Any
 from pynotifier import Notification
+from datetime import datetime, timedelta
 import requests
 
 notification_queue = queue.Queue()
@@ -16,11 +17,10 @@ CACHE_FILE = os.path.join(os.path.dirname(__file__), "cached_data.json")
 
 class CacheEncoder(JSONEncoder):
     def default(self, obj: 'GameData') -> Any:
-        return obj.to_json()
+        return obj.__dict__
 
 
 class CacheData:
-    data: dict[str, 'GameData']
 
     def __init__(self):
         try:
@@ -41,20 +41,17 @@ class CacheData:
 
     def _load_cache(self):
         with open(CACHE_FILE, "r") as cache_file:
-            data: dict[str, GameData] = json.load(cache_file)
+            data: dict[str, Any] = json.load(cache_file)
+            new_data = dict()
             for k, game_data in data.items():
-                data[k] = GameData(game_data)
-                data[k].sub_data = list(map(lambda sub: GameData.DiscountData(sub), data[k].sub_data))
-            self.data = data
+                parsed_data: GameData = GameData(game_data)
+                if parsed_data.expiration_date < datetime.now().timestamp():
+                    new_data[k] = parsed_data
+                    new_data[k].subs = list(map(lambda sub: GameData.DiscountData(sub), data[k]["subs"]))
+            self.data = new_data
 
 
 class Settings:
-    profile_id: Union[int, None]
-    interval: int
-    min_discount: int
-    page_delay: int
-    notification_duration: int
-    url: str
 
     def __init__(self):
         try:
@@ -62,7 +59,6 @@ class Settings:
                 data: dict[str, int] = json.load(settings_file)
                 if validate_data(data):
                     self.__dict__ = data
-                    self.url = f"https://store.steampowered.com/wishlist/profiles/{self.profile_id}/wishlistdata"
         except (FileNotFoundError, ValueError) as e:
             if isinstance(e, FileNotFoundError):
                 print(f"Please fill the {SETTINGS_FILE} with your data/preferences.")
@@ -71,6 +67,7 @@ class Settings:
                 self.min_discount = 30
                 self.page_delay = 1
                 self.notification_duration = 4
+                self.expiration_days = 7
                 with open(SETTINGS_FILE, "w") as settings_file:
                     json.dump(self.__dict__, settings_file, indent=2)
                 sys.exit(1)
@@ -78,20 +75,17 @@ class Settings:
                 print(f"Invalid data found at settings file: {SETTINGS_FILE}")
                 sys.exit(1)
 
+    def wishlist_url(self) -> str:
+        return f"https://store.steampowered.com/wishlist/profiles/{self.profile_id}/wishlistdata"
+
 
 class GameData:
+
     class DiscountData:
-        discount_pct: int
-        price: int
 
-        def __init__(self, dict_):
-            self.__dict__.update(dict_)
-
-        def to_json(self):
-            return {
-                "discount_pct": self.discount_pct,
-                "price": self.price
-            }
+        def __init__(self, data: dict[str, Any]):
+            self.discount_pct = data["discount_pct"]
+            self.price = data["price"]
 
         def __repr__(self):
             return f"GameData.DiscountData({self.discount_pct}, {self.price})"
@@ -102,37 +96,33 @@ class GameData:
         def __eq__(self, other: 'GameData.DiscountData'):
             return self.discount_pct == other.discount_pct and self.price == other.price
 
-    name: str
-    sub_data: list[DiscountData]
+    def __init__(self, data: dict[str, Any], expiration_date: float = None):
+        self.name = data["name"]
+        if expiration_date is not None:
+            self.expiration_date = expiration_date
+        else:
+            self.expiration_date = data["expiration_date"]
+        self._add_subs(data["subs"])
 
-    def __init__(self, dict_):
-        self.sub_data = []
-        self.__dict__.update(dict_)
-
-    def add_subs(self, subs: list[dict[str, Any]]) -> None:
+    def _add_subs(self, subs: list[dict[str, Any]]) -> None:
+        self.subs = list()
         for sub in subs:
-            self.sub_data.append(self.DiscountData(sub))
+            self.subs.append(self.DiscountData(sub))
 
     def has_discount(self, min_discount: int) -> bool:
         return len(
-            list(filter(lambda sub: sub.discount_pct >= min_discount, self.sub_data))
+            list(filter(lambda sub: sub.discount_pct >= min_discount, self.subs))
         ) > 0
 
     def get_discounts(self) -> str:
-        return f"{[str(x) for x in self.sub_data]}"
-
-    def to_json(self) -> dict[str, Any]:
-        return {
-            "name": self.name,
-            "sub_data": [sub.to_json() for sub in self.sub_data]
-        }
+        return f"{[str(sub) for sub in self.subs]}\n"
 
     def __str__(self) -> str:
-        return f"Name: {self.name} | Discounts: {[str(x) for x in self.sub_data]}"
+        return f"Name: {self.name} | Discounts: {[str(x) for x in self.subs]}"
 
     def __eq__(self, other: 'GameData'):
         if isinstance(other, GameData):
-            return self.name == other.name and self.sub_data == other.sub_data
+            return self.name == other.name and self.subs == other.subs
         raise ValueError(f"invalid comparison object: {type(other)}")
 
 
@@ -163,12 +153,12 @@ def start() -> None:
         has_next: bool = True
         page: int = 0
         while has_next:
-            r: requests.Response = requests.get(f"{settings.url}/?p={page}&v=2")
+            r: requests.Response = requests.get(f"{settings.wishlist_url()}/?p={page}&v=2")
             wishlist: dict = r.json()
             if r.status_code == 200 and wishlist:
                 for data in wishlist.values():
-                    game_data: GameData = GameData(data)
-                    game_data.add_subs(data["subs"])
+                    expiration: float = (datetime.now() + timedelta(settings.expiration_days)).timestamp()
+                    game_data: GameData = GameData(data, expiration)
                     if game_data.has_discount(settings.min_discount) and game_data not in cache:
                         notification_queue.put(game_data)
             else:
